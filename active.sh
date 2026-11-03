@@ -1,89 +1,74 @@
 #!/usr/bin/env bash
-# Hyprland-style KDE (Plasma 6, Wayland) shortcuts.  Usage: active.sh [-n]   (-n = dry run)
+# Hyprland-style KDE (Plasma 6, Wayland) shortcuts.
+#   active.sh               apply (backs up first)
+#   active.sh -n            dry run
+#   active.sh --check       drift + list of keys taken from other actions
+#   active.sh --restore     undo: default keys back, launchers/script/autostart/mouse removed
+#   active.sh --autostart on|off
+#   active.sh --reload|--login   apply without backup (hotkey / session start)
 set -euo pipefail
 HERE=$(cd "$(dirname "$(readlink -f "$0")")" && pwd)
 S=$HERE/scripts
-DRY=0; [[ ${1:-} == -n ]] && DRY=1
-export DRY
+APPS=~/.local/share/applications
+AUTO=~/.config/autostart/kde-hypr.desktop
+. "$HERE/config.env"
 
-# ---- config ---------------------------------------------------------------
-TERM_CMD=kitty
-BROWSER_CMD=firefox
-FILES_CMD=dolphin
-DESKTOPS=9
-# ---------------------------------------------------------------------------
-
+MODE=apply; export DRY=0
+case "${1:-}" in
+  -n) DRY=1 ;;
+  --check) MODE=check ;;
+  --restore) MODE=restore ;;
+  --autostart) MODE=autostart ;;
+  --reload|--login) MODE=quick ;;
+  "") ;;
+  *) sed -n '2,8p' "$0"; exit 1 ;;
+esac
 run() { if ((DRY)); then echo "[dry] $*"; else "$@"; fi; }
 
-# backup
-if ((!DRY)); then
+# parse bindings.conf -> TSV for bind.py, plus launcher .desktop files
+BINDS=$(mktemp); trap 'rm -f "$BINDS"' EXIT
+while IFS='|' read -r kind a b c d e; do
+  [[ -z $kind || $kind == \#* ]] && continue
+  case $kind in
+    bind)   printf '%s\t%s\t%s\t%s\n' "$a" "$b" "$c" "${d:-set}" >> "$BINDS" ;;
+    launch) cmd=${c//\$TERM_CMD/$TERM_CMD}; cmd=${cmd//\$BROWSER_CMD/$BROWSER_CMD}
+            cmd=${cmd//\$FILES_CMD/$FILES_CMD}; cmd=${cmd//\$HERE/$HERE}
+            printf 'hyper-%s.desktop\t_launch\t%s\tset\n' "$a" "$d" >> "$BINDS"
+            if [[ $MODE != check && $MODE != restore && $MODE != autostart ]] && ((!DRY)); then
+              printf '[Desktop Entry]\nType=Application\nName=%s\nExec=%s\nNoDisplay=true\nX-KDE-GlobalAccel-CommandShortcut=true\n' "$b" "$cmd" > "$APPS/hyper-$a.desktop"
+            fi ;;
+    *) echo "bad line in bindings.conf: $kind" >&2; exit 1 ;;
+  esac
+done < "$HERE/bindings.conf"
+
+case $MODE in
+check)
+  python3 -I "$S/bind.py" check < "$BINDS"; exit ;;
+autostart)
+  if [[ ${2:-} == on ]]; then
+    mkdir -p ~/.config/autostart
+    printf '[Desktop Entry]\nType=Application\nName=kde_hypr shortcuts\nExec=%s/active.sh --login\nX-KDE-autostart-after=panel\n' "$HERE" > "$AUTO"
+    echo "autostart on"
+  elif [[ ${2:-} == off ]]; then rm -f "$AUTO"; echo "autostart off"
+  else echo "usage: active.sh --autostart on|off"; exit 1; fi
+  exit ;;
+restore)
+  python3 -I "$S/bind.py" restore
+  rm -f "$APPS"/hyper-*.desktop "$AUTO"
+  kwriteconfig6 --file kwinrc --group Plugins --key hyper-desktopEnabled false
+  kpackagetool6 --type=KWin/Script --remove hyper-desktop 2>/dev/null || true
+  for k in CommandAllKey CommandAll1 CommandAll3 CommandAllWheel; do
+    kwriteconfig6 --file kwinrc --group MouseBindings --key $k --delete; done
+  qdbus6 org.kde.KWin /KWin reconfigure
+  echo "restored (desktop count left as is)"; exit ;;
+esac
+
+[[ $MODE == quick && ${1:-} == --login ]] && sleep 5
+if [[ $MODE == apply ]] && ((!DRY)); then
   B=$HERE/backup/$(date +%Y%m%d-%H%M%S); mkdir -p "$B"
-  cp ~/.config/kglobalshortcutsrc ~/.config/kwinrc "$B"/
-  echo "backup: $B"
+  cp ~/.config/kglobalshortcutsrc ~/.config/kwinrc "$B"/; echo "backup: $B"
 fi
 
-BINDS=$(mktemp); trap 'rm -f "$BINDS"' EXIT
-b() { printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "${4:-set}" >> "$BINDS"; }   # comp action keys [mode]
-APPS=~/.local/share/applications
-l() {  # id name exec keys  -> custom command shortcut
-  local f=$APPS/hyper-$1.desktop
-  if ((!DRY)); then
-    printf '[Desktop Entry]\nType=Application\nName=%s\nExec=%s\nNoDisplay=true\nX-KDE-GlobalAccel-CommandShortcut=true\n' "$2" "$3" > "$f"
-  fi
-  b "hyper-$1.desktop" _launch "$4"
-}
-
-# ---- windows (1-9) ---------------------------------------------------------
-b kwin "Window Fullscreen"            Meta+Shift+F
-b kwin "Window Close"                 Meta+Q
-b kwin "Window Maximize"              Meta+F
-b kwin "Window Above Other Windows"   Meta+V
-b kwin "Window Minimize"              Meta+N
-b kwin "Switch Window Left"           Meta+H
-b kwin "Switch Window Down"           Meta+J
-b kwin "Switch Window Up"             Meta+K
-b kwin "Switch Window Right"          Meta+L
-b kwin "Window Quick Tile Left"       Meta+Shift+H
-b kwin "Window Quick Tile Right"      Meta+Shift+L
-b kwin "Window Quick Tile Top"        Meta+Shift+K
-b kwin "Window Quick Tile Bottom"     Meta+Shift+J
-b kwin "Window Pack Left"             Meta+Alt+Left
-b kwin "Window Pack Right"            Meta+Alt+Right
-b kwin "Window Pack Up"               Meta+Alt+Up
-b kwin "Window Pack Down"             Meta+Alt+Down
-b kwin "Window Move"                  Meta+Alt+M
-b kwin "Window Resize"                Meta+Alt+R
-
-# ---- desktops (10-14) ------------------------------------------------------
-for i in $(seq 1 9); do
-  b kwin "Switch to Desktop $i" "Meta+$i"
-  b kwin "Window to Desktop $i" "Meta+Shift+$i"
-done
-b kwin HyperTogglePrevDesktop         Meta+Tab
-b kwin "Switch One Desktop to the Left"        Meta+Ctrl+Left
-b kwin "Switch One Desktop to the Right"       Meta+Ctrl+Right
-b kwin "Window One Desktop to the Left"        Meta+Ctrl+Shift+Left
-b kwin "Window One Desktop to the Right"       Meta+Ctrl+Shift+Right
-
-# ---- screens (16-17) -------------------------------------------------------
-b kwin "Switch to Previous Screen"    Meta+Comma
-b kwin "Switch to Next Screen"        Meta+Period
-b kwin "Window to Previous Screen"    Meta+Shift+Comma
-b kwin "Window to Next Screen"        Meta+Shift+Period
-
-# ---- launchers / misc (18-26) ---------------------------------------------
-l term     "Hyper Terminal"   "$TERM_CMD"                                          Meta+Return
-l runner   "Hyper KRunner"    "qdbus6 org.kde.krunner /App org.kde.krunner.App.toggleDisplay" Meta+D
-l files    "Hyper Files"      "$FILES_CMD"                                         Meta+E
-l browser  "Hyper Browser"    "$BROWSER_CMD"                                       Meta+B
-l shot     "Hyper Screenshot" "spectacle -r"                                       Meta+Shift+S
-b kwin "Overview"                     Meta+W
-b kwin "Show Desktop"                 Meta+Shift+D
-b ksmserver "Lock Session"            Meta+Alt+L add
-b ksmserver "Log Out"                 Meta+Shift+E add
-# Print stays on Spectacle's own default.
-
-# ---- apply -----------------------------------------------------------------
 # virtual desktops
 cur=$(qdbus6 org.kde.KWin /VirtualDesktopManager org.kde.KWin.VirtualDesktopManager.count)
 for ((n=cur; n<DESKTOPS; n++)); do run qdbus6 org.kde.KWin /VirtualDesktopManager org.kde.KWin.VirtualDesktopManager.createDesktop "$n" "Desktop $((n+1))"; done
@@ -91,11 +76,18 @@ run qdbus6 org.kde.KWin /VirtualDesktopManager org.kde.KWin.VirtualDesktopManage
 run kwriteconfig6 --file kwinrc --group Desktops --key Number "$DESKTOPS"
 run kwriteconfig6 --file kwinrc --group Desktops --key Rows 1
 
-# kwin script (previous-desktop toggle)
-run kpackagetool6 --type=KWin/Script --upgrade "$S/kwin/hyper-desktop" 2>/dev/null || run kpackagetool6 --type=KWin/Script --install "$S/kwin/hyper-desktop"
+# mouse: Mod+LMB move, Mod+RMB resize, Mod+wheel switch desktop
+run kwriteconfig6 --file kwinrc --group MouseBindings --key CommandAllKey "$MOD_KEY"
+run kwriteconfig6 --file kwinrc --group MouseBindings --key CommandAll1 Move
+run kwriteconfig6 --file kwinrc --group MouseBindings --key CommandAll3 Resize
+run kwriteconfig6 --file kwinrc --group MouseBindings --key CommandAllWheel "previous/next desktop"
+
+# kwin script (prev-desktop toggle + scratchpad)
+run kpackagetool6 --type=KWin/Script --upgrade "$S/kwin/hyper-desktop" >/dev/null 2>&1 || run kpackagetool6 --type=KWin/Script --install "$S/kwin/hyper-desktop"
 run kwriteconfig6 --file kwinrc --group Plugins --key hyper-desktopEnabled true
 run qdbus6 org.kde.KWin /KWin reconfigure
 ((DRY)) || sleep 1
 
-python3 -I "$S/bind.py" < "$BINDS"
+python3 -I "$S/bind.py" apply < "$BINDS"
+[[ ${1:-} == --reload ]] && notify-send -a kde_hypr "kde_hypr" "Shortcuts reloaded"
 echo done
