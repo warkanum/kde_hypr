@@ -22,8 +22,8 @@
 |---|---|
 | Mod+F / Shift+F | maximize toggle / fullscreen |
 | Mod+Q N V | close / minimize / keep-above |
-| Mod+Arrows | focus (`KEYSTYLE=vim` in config.env -> H J K L) |
-| Mod+Shift+Arrows | tile halves (vim: Shift+H J K L) |
+| Mod+dir | focus left/down/up/right (see Key style) |
+| Mod+Shift+dir | tile halves (see Key style) |
 | Mod+Ctrl+Y U B N | tile quarters |
 | Mod+G / Mod+T | grid view / tile editor |
 | Mod+Alt+Arrows, M, R | pack to edge, kb move, kb resize |
@@ -43,5 +43,13 @@
 | Mod+F7-F9 | prev, play/pause, next |
 | Mod+F10 / F11 | brightness -/+ |
 | Mod+Shift+R | reload this config |
+
+## Key style (`KEYSTYLE` in config.env, then `./active.sh`)
+| Style | Focus | Tile halves |
+|---|---|---|
+| `arrows` (default) | Mod+Left/Down/Up/Right | Mod+Shift+Left/Down/Up/Right |
+| `vim` | Mod+H/J/K/L | Mod+Shift+H/J/K/L |
+
+Switching removes the other style's keys. Desktop and pack-to-edge keys stay on arrows in both.
 
 No colour picker (kcolorchooser not installed).
