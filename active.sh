@@ -13,6 +13,7 @@ APPS=~/.local/share/applications
 AUTO=~/.config/autostart/kde-hypr.desktop
 . "$HERE/config.env"
 
+if [[ $KEYSTYLE == vim ]]; then LEFT=H DOWN=J UP=K RIGHT=L; else LEFT=Left DOWN=Down UP=Up RIGHT=Right; fi
 MODE=apply; export DRY=0
 case "${1:-}" in
   -n) DRY=1 ;;
@@ -30,7 +31,8 @@ BINDS=$(mktemp); trap 'rm -f "$BINDS"' EXIT
 while IFS='|' read -r kind a b c d e; do
   [[ -z $kind || $kind == \#* ]] && continue
   case $kind in
-    bind)   printf '%s\t%s\t%s\t%s\n' "$a" "$b" "$c" "${d:-set}" >> "$BINDS" ;;
+    bind)   c=${c//\$LEFT/$LEFT}; c=${c//\$DOWN/$DOWN}; c=${c//\$UP/$UP}; c=${c//\$RIGHT/$RIGHT}
+            printf '%s\t%s\t%s\t%s\n' "$a" "$b" "$c" "${d:-set}" >> "$BINDS" ;;
     launch) cmd=${c//\$TERM_CMD/$TERM_CMD}; cmd=${cmd//\$BROWSER_CMD/$BROWSER_CMD}
             cmd=${cmd//\$FILES_CMD/$FILES_CMD}; cmd=${cmd//\$HERE/$HERE}
             printf 'hyper-%s.desktop\t_launch\t%s\tset\n' "$a" "$d" >> "$BINDS"
@@ -59,6 +61,7 @@ restore)
   kpackagetool6 --type=KWin/Script --remove hyper-desktop 2>/dev/null || true
   for k in CommandAllKey CommandAll1 CommandAll3 CommandAllWheel; do
     kwriteconfig6 --file kwinrc --group MouseBindings --key $k --delete; done
+  kwriteconfig6 --file kwinrc --group Windows --key FocusStealingPreventionLevel --delete
   qdbus6 org.kde.KWin /KWin reconfigure
   echo "restored (desktop count left as is)"; exit ;;
 esac
@@ -76,11 +79,12 @@ run qdbus6 org.kde.KWin /VirtualDesktopManager org.kde.KWin.VirtualDesktopManage
 run kwriteconfig6 --file kwinrc --group Desktops --key Number "$DESKTOPS"
 run kwriteconfig6 --file kwinrc --group Desktops --key Rows 1
 
-# mouse: Mod+LMB move, Mod+RMB resize, Mod+wheel switch desktop
+# mouse: Mod+LMB move, Mod+RMB resize (wheel unbound); new windows always take focus
 run kwriteconfig6 --file kwinrc --group MouseBindings --key CommandAllKey "$MOD_KEY"
 run kwriteconfig6 --file kwinrc --group MouseBindings --key CommandAll1 Move
 run kwriteconfig6 --file kwinrc --group MouseBindings --key CommandAll3 Resize
-run kwriteconfig6 --file kwinrc --group MouseBindings --key CommandAllWheel "previous/next desktop"
+run kwriteconfig6 --file kwinrc --group MouseBindings --key CommandAllWheel --delete
+run kwriteconfig6 --file kwinrc --group Windows --key FocusStealingPreventionLevel 0
 
 # kwin script (prev-desktop toggle + scratchpad)
 run kpackagetool6 --type=KWin/Script --upgrade "$S/kwin/hyper-desktop" >/dev/null 2>&1 || run kpackagetool6 --type=KWin/Script --install "$S/kwin/hyper-desktop"

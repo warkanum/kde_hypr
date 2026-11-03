@@ -9,7 +9,7 @@
 
 | File | Purpose |
 |---|---|
-| `config.env` | apps, DESKTOPS, MOD_KEY, scratchpad command |
+| `config.env` | apps, DESKTOPS, MOD_KEY, KEYSTYLE (arrows\|vim), scratchpad command |
 | `bindings.conf` | all keys: `bind\|comp\|action\|keys[\|set\|add]`, `launch\|id\|Name\|cmd\|keys` |
 | `scripts/bind.py` | live apply/check/restore via kglobalaccel D-Bus |
 | `scripts/kwin/hyper-desktop/` | KWin script: Mod+Tab prev desktop, scratchpad window |
@@ -22,13 +22,12 @@
 |---|---|
 | Mod+F / Shift+F | maximize toggle / fullscreen |
 | Mod+Q N V | close / minimize / keep-above |
-| Mod+H J K L | focus |
-| Mod+Shift+H J K L | tile halves |
+| Mod+Arrows | focus (`KEYSTYLE=vim` in config.env -> H J K L) |
+| Mod+Shift+Arrows | tile halves (vim: Shift+H J K L) |
 | Mod+Ctrl+Y U B N | tile quarters |
 | Mod+G / Mod+T | grid view / tile editor |
 | Mod+Alt+Arrows, M, R | pack to edge, kb move, kb resize |
 | Mod+LMB / RMB drag | move / resize |
-| Mod+Wheel | prev/next desktop |
 | Mod+1..9 (+Shift) | desktop (send window) |
 | Mod+Tab | toggle previous desktop |
 | Mod+Shift+Tab / Mod+Alt+Tab | cycle desktops back / forward |
