@@ -21,7 +21,7 @@
 | Keys | Action |
 |---|---|
 | Mod+F / Shift+F | maximize toggle / fullscreen |
-| Mod+Q N V | close / minimize / keep-above |
+| Mod+Q N, Mod+Shift+V | close, minimize, keep-above |
 | Mod+dir | focus left/down/up/right (see Key style) |
 | Mod+Shift+dir | tile halves (see Key style) |
 | Mod+Ctrl+Y U B N | tile quarters |
@@ -38,7 +38,7 @@
 | Mod+W, Mod+Ctrl+Tab, Mod+Shift+D | overview, all windows, show desktop |
 | Mod+Alt+L, Mod+Shift+E | lock, logout |
 | Mod+Shift+S, Print | region screenshot, Spectacle |
-| Mod+Shift+V, Mod+Ctrl+E | clipboard history, emoji |
+| Mod+V, Mod+Ctrl+E | clipboard history, emoji |
 | Mod+F1-F4 | mute, vol-, vol+, mic mute |
 | Mod+F7-F9 | prev, play/pause, next |
 | Mod+F10 / F11 | brightness -/+ |
