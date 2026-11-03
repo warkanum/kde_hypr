@@ -1,0 +1,11 @@
+{
+    "KPlugin": {
+        "Id": "hyper-desktop",
+        "Name": "Hyper Desktop Toggle",
+        "Description": "Toggle back to the previously active virtual desktop",
+        "Version": "1.0"
+    },
+    "KPackageStructure": "KWin/Script",
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js"
+}
